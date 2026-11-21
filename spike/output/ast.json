@@ -1,0 +1,279 @@
+{
+  "kind": "procedure",
+  "name": "hitung_denda_kredit",
+  "params": [
+    {
+      "name": "p_no_rekening",
+      "mode": "IN",
+      "type": "VARCHAR2"
+    },
+    {
+      "name": "p_tgl_proses",
+      "mode": "IN",
+      "type": "DATE"
+    },
+    {
+      "name": "p_denda",
+      "mode": "OUT",
+      "type": "NUMBER"
+    }
+  ],
+  "decls": [
+    {
+      "name": "v_tunggakan",
+      "type": "NUMBER",
+      "init": null
+    },
+    {
+      "name": "v_hari_telat",
+      "type": "NUMBER",
+      "init": null
+    },
+    {
+      "name": "v_kolektibilitas",
+      "type": "NUMBER",
+      "init": {
+        "e": "num",
+        "v": "1"
+      }
+    },
+    {
+      "name": "v_tarif",
+      "type": "NUMBER",
+      "init": {
+        "e": "num",
+        "v": "0.001"
+      }
+    },
+    {
+      "name": "v_maks_denda",
+      "type": "NUMBER",
+      "init": {
+        "e": "num",
+        "v": "5000000"
+      }
+    }
+  ],
+  "body": [
+    {
+      "kind": "select_into",
+      "columns": [
+        "tunggakan_pokok",
+        "hari_tunggakan"
+      ],
+      "into": [
+        "v_tunggakan",
+        "v_hari_telat"
+      ],
+      "table": "pinjaman",
+      "where": [
+        "no_rekening",
+        {
+          "e": "var",
+          "v": "p_no_rekening"
+        }
+      ]
+    },
+    {
+      "kind": "if",
+      "branches": [
+        [
+          {
+            "e": "bin",
+            "op": "<=",
+            "l": {
+              "e": "var",
+              "v": "v_hari_telat"
+            },
+            "r": {
+              "e": "num",
+              "v": "0"
+            }
+          },
+          [
+            {
+              "kind": "assign",
+              "target": "p_denda",
+              "value": {
+                "e": "num",
+                "v": "0"
+              }
+            }
+          ]
+        ],
+        [
+          {
+            "e": "bin",
+            "op": "<=",
+            "l": {
+              "e": "var",
+              "v": "v_hari_telat"
+            },
+            "r": {
+              "e": "num",
+              "v": "90"
+            }
+          },
+          [
+            {
+              "kind": "assign",
+              "target": "p_denda",
+              "value": {
+                "e": "bin",
+                "op": "*",
+                "l": {
+                  "e": "bin",
+                  "op": "*",
+                  "l": {
+                    "e": "var",
+                    "v": "v_tunggakan"
+                  },
+                  "r": {
+                    "e": "var",
+                    "v": "v_tarif"
+                  }
+                },
+                "r": {
+                  "e": "var",
+                  "v": "v_hari_telat"
+                }
+              }
+            },
+            {
+              "kind": "assign",
+              "target": "v_kolektibilitas",
+              "value": {
+                "e": "num",
+                "v": "2"
+              }
+            }
+          ]
+        ]
+      ],
+      "else": [
+        {
+          "kind": "assign",
+          "target": "p_denda",
+          "value": {
+            "e": "bin",
+            "op": "+",
+            "l": {
+              "e": "bin",
+              "op": "*",
+              "l": {
+                "e": "bin",
+                "op": "*",
+                "l": {
+                  "e": "var",
+                  "v": "v_tunggakan"
+                },
+                "r": {
+                  "e": "var",
+                  "v": "v_tarif"
+                }
+              },
+              "r": {
+                "e": "num",
+                "v": "90"
+              }
+            },
+            "r": {
+              "e": "num",
+              "v": "50000"
+            }
+          }
+        },
+        {
+          "kind": "assign",
+          "target": "v_kolektibilitas",
+          "value": {
+            "e": "num",
+            "v": "3"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "if",
+      "branches": [
+        [
+          {
+            "e": "bin",
+            "op": ">",
+            "l": {
+              "e": "var",
+              "v": "p_denda"
+            },
+            "r": {
+              "e": "var",
+              "v": "v_maks_denda"
+            }
+          },
+          [
+            {
+              "kind": "assign",
+              "target": "p_denda",
+              "value": {
+                "e": "var",
+                "v": "v_maks_denda"
+              }
+            }
+          ]
+        ]
+      ],
+      "else": null
+    },
+    {
+      "kind": "update",
+      "table": "pinjaman",
+      "set": [
+        [
+          "denda",
+          {
+            "e": "var",
+            "v": "p_denda"
+          }
+        ],
+        [
+          "kolektibilitas",
+          {
+            "e": "var",
+            "v": "v_kolektibilitas"
+          }
+        ],
+        [
+          "tgl_hitung_denda",
+          {
+            "e": "var",
+            "v": "p_tgl_proses"
+          }
+        ]
+      ],
+      "where": [
+        "no_rekening",
+        {
+          "e": "var",
+          "v": "p_no_rekening"
+        }
+      ]
+    },
+    {
+      "kind": "commit"
+    }
+  ],
+  "exceptions": [
+    {
+      "exception": "NO_DATA_FOUND",
+      "body": [
+        {
+          "kind": "assign",
+          "target": "p_denda",
+          "value": {
+            "e": "num",
+            "v": "-1"
+          }
+        }
+      ]
+    }
+  ]
+}

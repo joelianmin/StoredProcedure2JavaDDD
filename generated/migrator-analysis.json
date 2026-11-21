@@ -1,0 +1,506 @@
+{
+  "procedures": [
+    {
+      "api": true,
+      "branch_count": 4,
+      "constructs": [
+        "If",
+        "Insert",
+        "Raise",
+        "SelectInto",
+        "Update"
+      ],
+      "procedure": "ajukan_pinjaman",
+      "reason": null,
+      "source_file": "ajukan_pinjaman.sql",
+      "status": "ok",
+      "tables_read": [
+        "borrower"
+      ],
+      "tables_written": [
+        "borrower",
+        "loan"
+      ],
+      "traps": [
+        {
+          "code": "J3",
+          "detail": "SELECT INTO dari borrower",
+          "line": 9
+        },
+        {
+          "code": "J10",
+          "detail": "RAISE 'Borrower tidak ditemukan: %' dengan 1 argumen",
+          "line": 13
+        },
+        {
+          "code": "J1",
+          "detail": "(v_income <= 3000000): v_income bisa NULL",
+          "line": 21
+        },
+        {
+          "code": "J1",
+          "detail": "(p_jumlah > v_limit): p_jumlah bisa NULL",
+          "line": 25
+        },
+        {
+          "code": "J11",
+          "detail": "loan.amount numeric(15,2)",
+          "line": 29
+        },
+        {
+          "code": "J11",
+          "detail": "loan.collected_amount numeric(15,2)",
+          "line": 29
+        },
+        {
+          "code": "J11",
+          "detail": "loan.interest_rate numeric(5,4)",
+          "line": 29
+        },
+        {
+          "code": "J12",
+          "detail": "INSERT loan (NOT NULL/PK ganda)",
+          "line": 29
+        },
+        {
+          "code": "J11",
+          "detail": "borrower.loan_limit numeric(15,2)",
+          "line": 32
+        },
+        {
+          "code": "J12",
+          "detail": "borrower.loan_limit NOT NULL",
+          "line": 32
+        },
+        {
+          "code": "J2",
+          "detail": "(loan_limit - p_jumlah): p_jumlah bisa NULL",
+          "line": 32
+        }
+      ]
+    },
+    {
+      "api": true,
+      "branch_count": 2,
+      "constructs": [
+        "Delete",
+        "ForQuery",
+        "If",
+        "Raise",
+        "SelectInto",
+        "Update"
+      ],
+      "procedure": "batalkan_pinjaman",
+      "reason": null,
+      "source_file": "batalkan_pinjaman.sql",
+      "status": "ok",
+      "tables_read": [
+        "funding",
+        "loan"
+      ],
+      "tables_written": [
+        "borrower",
+        "funding",
+        "lender",
+        "loan"
+      ],
+      "traps": [
+        {
+          "code": "J3",
+          "detail": "SELECT INTO dari loan",
+          "line": 10
+        },
+        {
+          "code": "J10",
+          "detail": "RAISE 'Loan tidak ditemukan: %' dengan 1 argumen",
+          "line": 14
+        },
+        {
+          "code": "J11",
+          "detail": "lender.balance numeric(15,2)",
+          "line": 22
+        },
+        {
+          "code": "J12",
+          "detail": "lender.balance NOT NULL",
+          "line": 22
+        },
+        {
+          "code": "J11",
+          "detail": "borrower.loan_limit numeric(15,2)",
+          "line": 27
+        },
+        {
+          "code": "J12",
+          "detail": "borrower.loan_limit NOT NULL",
+          "line": 27
+        },
+        {
+          "code": "J11",
+          "detail": "loan.collected_amount numeric(15,2)",
+          "line": 28
+        },
+        {
+          "code": "J12",
+          "detail": "loan.collected_amount NOT NULL",
+          "line": 28
+        },
+        {
+          "code": "J12",
+          "detail": "loan.status NOT NULL",
+          "line": 28
+        }
+      ]
+    },
+    {
+      "api": true,
+      "branch_count": 4,
+      "constructs": [
+        "Assign",
+        "If",
+        "Raise",
+        "SelectInto",
+        "Update"
+      ],
+      "procedure": "bayar_pinjaman",
+      "reason": null,
+      "source_file": "bayar_pinjaman.sql",
+      "status": "ok",
+      "tables_read": [
+        "borrower",
+        "loan"
+      ],
+      "tables_written": [
+        "borrower",
+        "loan"
+      ],
+      "traps": [
+        {
+          "code": "J3",
+          "detail": "SELECT INTO dari loan",
+          "line": 14
+        },
+        {
+          "code": "J10",
+          "detail": "RAISE 'Loan tidak ditemukan: %' dengan 1 argumen",
+          "line": 18
+        },
+        {
+          "code": "J5",
+          "detail": "round((((v_amount * v_rate) * v_tenor) / 12), 2)",
+          "line": 25
+        },
+        {
+          "code": "J6",
+          "detail": "(((v_amount * v_rate) * v_tenor) / 12)",
+          "line": 25
+        },
+        {
+          "code": "J3",
+          "detail": "SELECT INTO dari borrower",
+          "line": 28
+        },
+        {
+          "code": "J10",
+          "detail": "RAISE 'Borrower tidak ditemukan: %' dengan 1 argumen",
+          "line": 30
+        },
+        {
+          "code": "J11",
+          "detail": "borrower.balance numeric(15,2)",
+          "line": 37
+        },
+        {
+          "code": "J12",
+          "detail": "borrower.balance NOT NULL",
+          "line": 37
+        },
+        {
+          "code": "J12",
+          "detail": "loan.status NOT NULL",
+          "line": 38
+        }
+      ]
+    },
+    {
+      "api": true,
+      "branch_count": 2,
+      "constructs": [
+        "If",
+        "Raise",
+        "SelectInto",
+        "Update"
+      ],
+      "procedure": "cairkan_pinjaman",
+      "reason": null,
+      "source_file": "cairkan_pinjaman.sql",
+      "status": "ok",
+      "tables_read": [
+        "loan"
+      ],
+      "tables_written": [
+        "borrower",
+        "loan"
+      ],
+      "traps": [
+        {
+          "code": "J3",
+          "detail": "SELECT INTO dari loan",
+          "line": 9
+        },
+        {
+          "code": "J10",
+          "detail": "RAISE 'Loan tidak ditemukan: %' dengan 1 argumen",
+          "line": 13
+        },
+        {
+          "code": "J11",
+          "detail": "borrower.balance numeric(15,2)",
+          "line": 20
+        },
+        {
+          "code": "J12",
+          "detail": "borrower.balance NOT NULL",
+          "line": 20
+        },
+        {
+          "code": "J12",
+          "detail": "loan.status NOT NULL",
+          "line": 21
+        }
+      ]
+    },
+    {
+      "api": true,
+      "branch_count": 6,
+      "constructs": [
+        "If",
+        "Insert",
+        "Raise",
+        "SelectInto",
+        "Update"
+      ],
+      "procedure": "danai_pinjaman",
+      "reason": null,
+      "source_file": "danai_pinjaman.sql",
+      "status": "ok",
+      "tables_read": [
+        "lender",
+        "loan"
+      ],
+      "tables_written": [
+        "funding",
+        "lender",
+        "loan"
+      ],
+      "traps": [
+        {
+          "code": "J3",
+          "detail": "SELECT INTO dari loan",
+          "line": 11
+        },
+        {
+          "code": "J10",
+          "detail": "RAISE 'Loan tidak ditemukan: %' dengan 1 argumen",
+          "line": 15
+        },
+        {
+          "code": "J3",
+          "detail": "SELECT INTO dari lender",
+          "line": 18
+        },
+        {
+          "code": "J10",
+          "detail": "RAISE 'Lender tidak ditemukan: %' dengan 1 argumen",
+          "line": 20
+        },
+        {
+          "code": "J10",
+          "detail": "RAISE 'Loan % tidak dalam status PENDING' dengan 1 argumen",
+          "line": 24
+        },
+        {
+          "code": "J1",
+          "detail": "(v_saldo < p_jumlah): p_jumlah bisa NULL",
+          "line": 27
+        },
+        {
+          "code": "J11",
+          "detail": "lender.balance numeric(15,2)",
+          "line": 31
+        },
+        {
+          "code": "J12",
+          "detail": "lender.balance NOT NULL",
+          "line": 31
+        },
+        {
+          "code": "J2",
+          "detail": "(balance - p_jumlah): p_jumlah bisa NULL",
+          "line": 31
+        },
+        {
+          "code": "J1",
+          "detail": "(p_jumlah > (v_target - v_terkumpul)): p_jumlah bisa NULL",
+          "line": 33
+        },
+        {
+          "code": "J4",
+          "detail": "RAISE setelah penulisan: semua perubahan harus di-rollback",
+          "line": 34
+        },
+        {
+          "code": "J11",
+          "detail": "funding.amount numeric(15,2)",
+          "line": 37
+        },
+        {
+          "code": "J12",
+          "detail": "INSERT funding (NOT NULL/PK ganda)",
+          "line": 37
+        },
+        {
+          "code": "J11",
+          "detail": "loan.collected_amount numeric(15,2)",
+          "line": 40
+        },
+        {
+          "code": "J12",
+          "detail": "loan.collected_amount NOT NULL",
+          "line": 40
+        },
+        {
+          "code": "J2",
+          "detail": "(collected_amount + p_jumlah): p_jumlah bisa NULL",
+          "line": 40
+        },
+        {
+          "code": "J1",
+          "detail": "((v_terkumpul + p_jumlah) >= v_target): (v_terkumpul + p_jumlah) bisa NULL",
+          "line": 42
+        },
+        {
+          "code": "J2",
+          "detail": "(v_terkumpul + p_jumlah): p_jumlah bisa NULL",
+          "line": 42
+        },
+        {
+          "code": "J12",
+          "detail": "loan.status NOT NULL",
+          "line": 43
+        }
+      ]
+    },
+    {
+      "api": false,
+      "branch_count": 2,
+      "constructs": [
+        "Assign",
+        "If",
+        "Raise"
+      ],
+      "procedure": "uji_and_pendek",
+      "reason": null,
+      "source_file": "uji_and_pendek.sql",
+      "status": "ok",
+      "tables_read": [],
+      "tables_written": [],
+      "traps": [
+        {
+          "code": "J1",
+          "detail": "((p_jumlah / p_tenor) > 1000): (p_jumlah / p_tenor) bisa NULL",
+          "line": 7
+        },
+        {
+          "code": "J1",
+          "detail": "(p_tenor > 0): p_tenor bisa NULL",
+          "line": 7
+        },
+        {
+          "code": "J2",
+          "detail": "(p_jumlah / p_tenor): p_jumlah, p_tenor bisa NULL",
+          "line": 7
+        },
+        {
+          "code": "J6",
+          "detail": "(p_jumlah / p_tenor)",
+          "line": 7
+        },
+        {
+          "code": "J2",
+          "detail": "(p_jumlah / p_tenor): p_jumlah, p_tenor bisa NULL",
+          "line": 10
+        },
+        {
+          "code": "J6",
+          "detail": "(p_jumlah / p_tenor)",
+          "line": 10
+        }
+      ]
+    },
+    {
+      "api": false,
+      "branch_count": 1,
+      "constructs": [
+        "ForQuery",
+        "If",
+        "Raise",
+        "Update"
+      ],
+      "procedure": "uji_found_for",
+      "reason": null,
+      "source_file": "uji_found_for.sql",
+      "status": "ok",
+      "tables_read": [
+        "funding"
+      ],
+      "tables_written": [
+        "lender"
+      ],
+      "traps": [
+        {
+          "code": "J11",
+          "detail": "lender.balance numeric(15,2)",
+          "line": 8
+        },
+        {
+          "code": "J12",
+          "detail": "lender.balance NOT NULL",
+          "line": 8
+        },
+        {
+          "code": "J4",
+          "detail": "RAISE setelah penulisan: semua perubahan harus di-rollback",
+          "line": 11
+        }
+      ]
+    },
+    {
+      "api": false,
+      "branch_count": 3,
+      "constructs": [
+        "Assign",
+        "If",
+        "Raise"
+      ],
+      "procedure": "uji_null_cabang",
+      "reason": null,
+      "source_file": "uji_null_cabang.sql",
+      "status": "ok",
+      "tables_read": [],
+      "tables_written": [],
+      "traps": [
+        {
+          "code": "J1",
+          "detail": "(v_extra > 50): v_extra bisa NULL",
+          "line": 12
+        },
+        {
+          "code": "J1",
+          "detail": "('APPROVED' <> v_s): v_s bisa NULL",
+          "line": 15
+        }
+      ]
+    }
+  ]
+}

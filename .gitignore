@@ -2,10 +2,10 @@
 __pycache__/
 *.pyc
 target/
-generated/
+generated/mvn-test.log
+generated/generate-seconds.txt
 spike*/.venv/
 spike*/build/
-spike-pglast/generated/
 .superpowers/
 .DS_Store
 .pgdata/

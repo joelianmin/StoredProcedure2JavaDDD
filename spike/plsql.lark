@@ -1,0 +1,51 @@
+// SPIKE: subset kecil PL/SQL, cukup untuk contoh procedure.
+start: procedure "/"?
+
+procedure: "CREATE"i ("OR"i "REPLACE"i)? "PROCEDURE"i NAME "(" params ")" ("AS"i | "IS"i) decls "BEGIN"i stmts exception_block? "END"i NAME? ";"
+
+params: param ("," param)*
+param: NAME MODE TYPE
+MODE: /IN\s+OUT|IN|OUT/i
+TYPE: /VARCHAR2|NUMBER|DATE|INTEGER|BOOLEAN/i
+
+decls: decl*
+decl: NAME TYPE (":=" expr)? ";"
+
+stmts: stmt+
+?stmt: assign | if_stmt | select_into | update_stmt | commit | null_stmt
+
+assign: NAME ":=" expr ";"
+if_stmt: "IF"i expr "THEN"i stmts elsif* else_? "END"i "IF"i ";"
+elsif: "ELSIF"i expr "THEN"i stmts
+else_: "ELSE"i stmts
+select_into: "SELECT"i names "INTO"i names "FROM"i NAME "WHERE"i condition ";"
+update_stmt: "UPDATE"i NAME "SET"i set_item ("," set_item)* "WHERE"i condition ";"
+set_item: NAME "=" expr
+condition: NAME "=" expr
+commit: "COMMIT"i ";"
+null_stmt: "NULL"i ";"
+names: NAME ("," NAME)*
+
+exception_block: "EXCEPTION"i handler+
+handler: "WHEN"i NAME "THEN"i stmts
+
+?expr: comparison
+?comparison: sum (COMP_OP sum)?
+?sum: product (ADD_OP product)*
+?product: atom (MUL_OP atom)*
+?atom: NUMBER -> num
+     | "-" NUMBER -> neg_num
+     | STRING -> str
+     | NAME   -> var
+     | "(" expr ")"
+
+COMP_OP: "<=" | ">=" | "<>" | "!=" | "=" | "<" | ">"
+ADD_OP: "+" | "-"
+MUL_OP: "*" | "/"
+NAME: /(?!(END|IF|THEN|ELSE|ELSIF|BEGIN|WHERE|SET|FROM|INTO|WHEN|EXCEPTION)\b)[a-zA-Z_][a-zA-Z0-9_]*/i
+STRING: /'[^']*'/
+%import common.NUMBER
+%import common.WS
+COMMENT: /--[^\n]*/
+%ignore WS
+%ignore COMMENT
