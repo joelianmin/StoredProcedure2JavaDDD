@@ -1,0 +1,8 @@
+Metadata-Version: 2.4
+Name: migrator
+Version: 0.1.0
+Summary: Migrator deterministik PL/pgSQL -> kode DDD Java (spike)
+Requires-Python: >=3.12
+Requires-Dist: pglast==8.9
+Requires-Dist: jinja2==3.1.6
+Requires-Dist: pyyaml==6.0.4

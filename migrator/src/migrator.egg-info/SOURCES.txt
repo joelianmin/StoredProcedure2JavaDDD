@@ -1,0 +1,9 @@
+pyproject.toml
+src/migrator/__init__.py
+src/migrator.egg-info/PKG-INFO
+src/migrator.egg-info/SOURCES.txt
+src/migrator.egg-info/dependency_links.txt
+src/migrator.egg-info/entry_points.txt
+src/migrator.egg-info/requires.txt
+src/migrator.egg-info/top_level.txt
+src/migrator/gen/__init__.py

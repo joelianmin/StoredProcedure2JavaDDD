@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "migrator"
+version = "0.1.0"
+description = "Migrator deterministik PL/pgSQL -> kode DDD Java (spike)"
+requires-python = ">=3.12"
+dependencies = ["pglast==8.9", "jinja2==3.1.6", "pyyaml==6.0.4"]
+
+[project.scripts]
+migrator = "migrator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"migrator.gen" = ["templates/*.j2"]
