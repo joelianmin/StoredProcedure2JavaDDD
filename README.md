@@ -27,6 +27,7 @@ Hasil saat ini: 40/40 skenario setara untuk backend JDBC dan Map, dan 8/8 proced
 
 | Dokumen | Isi |
 |---|---|
+| [docs/panduan-belajar.md](docs/panduan-belajar.md) | **Panduan belajar mahasiswa**: 12 modul, latihan, proyek akhir |
 | [docs/artefak-dan-alur.md](docs/artefak-dan-alur.md) | Peta semua artefak, hubungan antar-artefak, dan alur proses |
 | [docs/proses-pengerjaan-dengan-ai.md](docs/proses-pengerjaan-dengan-ai.md) | Bagaimana tim berinteraksi dengan AI, dan apa yang dikerjakan AI |
 | [docs/superpowers/specs/…-design.md](docs/superpowers/specs/2026-11-21-migrator-plpgsql-ke-ddd-java-design.md) | Spec: desain, katalog jebakan J1–J12, metrik |

@@ -30,7 +30,7 @@ migrator/.venv/bin/migrator generate --schema corpus/schema.sql --procs corpus/p
 
 ## 4. Bukti kesetaraan (2 menit)
 ```bash
-mvn -q -f generated/pom.xml test     # 34 skenario x (jdbc, memory) vs CALL asli
+mvn -q -f generated/pom.xml test     # 40 skenario x (jdbc, memory) vs CALL asli
 ```
 - Skenario "Melebihi sisa target ... (J4)": saldo lender kembali di ketiga backend.
 - **Langsung tunjukkan kepekaan:** ganti `HALF_UP` menjadi `HALF_EVEN` di
