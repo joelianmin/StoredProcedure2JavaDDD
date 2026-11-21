@@ -95,14 +95,8 @@ def generate_project(schema: Path, procs_dir: Path, mapping: Path | None, featur
 
 def _extra_files(tables, procs, models, mapping, features, runtime, env, analyses) -> dict[Path, str]:
     files: dict[Path, str] = {}
-    try:
-        from .java_test import test_files
-        files.update(test_files(tables, procs, models, features, env))
-    except ImportError:
-        pass
-    try:
-        from .java_api import api_files
-        files.update(api_files(tables, procs, models, mapping, env, analyses))
-    except ImportError:
-        pass
+    from .java_test import test_files
+    files.update(test_files(tables, procs, models, features, env))
+    from .java_api import api_files
+    files.update(api_files(tables, procs, models, mapping, env, analyses))
     return files

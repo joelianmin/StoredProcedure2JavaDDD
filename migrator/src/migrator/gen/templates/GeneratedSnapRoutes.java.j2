@@ -1,0 +1,27 @@
+// DIHASILKAN OTOMATIS oleh migrator dari mapping.yaml - jangan diedit manual.
+package com.p2p.api;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+
+import org.springframework.stereotype.Component;
+
+import com.p2p.snap.SnapRoutes;
+
+/** Path endpoint SNAP -> kode layanan (90-94 adalah ekstensi non-standar untuk P2P lending). */
+@Component
+public class GeneratedSnapRoutes implements SnapRoutes {
+    private static final Map<String, String> CODES = new LinkedHashMap<>();
+
+    static {
+{%- for a in apis %}
+        CODES.put("/v1.0/{{ a.service }}", "{{ a.service_code }}");   // {{ a.proc_name }}
+{%- endfor %}
+    }
+
+    @Override
+    public Optional<String> serviceCodeFor(String path) {
+        return Optional.ofNullable(CODES.get(path));
+    }
+}

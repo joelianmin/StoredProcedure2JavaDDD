@@ -1,0 +1,50 @@
+// DIHASILKAN OTOMATIS oleh migrator dari mapping.yaml ({{ a.proc_name }}) - jangan diedit manual.
+package com.p2p.api;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.p2p.service.{{ a.service_cls }};
+import com.p2p.snap.ErrorRule;
+import com.p2p.snap.SnapErrors;
+import com.p2p.snap.SnapFields;
+import com.p2p.snap.SnapRequestException;
+import com.p2p.snap.SnapResponse;
+import com.p2p.support.ProcedureException;
+
+/** Endpoint SNAP untuk procedure {@code {{ a.proc_name }}} (kode layanan {{ a.service_code }}). */
+@RestController
+public class {{ a.controller }} {
+    private static final String SERVICE_CODE = "{{ a.service_code }}";
+    private static final List<ErrorRule> ERRORS = List.of({% for e in a.errors %}
+            new ErrorRule({{ e.prefix }}, {{ e.http }}, "{{ e.case }}", {{ e.message }}){% if not loop.last %},{% endif %}{% endfor %});
+
+    private final {{ a.service_cls }} service;
+
+    public {{ a.controller }}({{ a.service_cls }} service) {
+        this.service = service;
+    }
+
+    @PostMapping("/v1.0/{{ a.service }}")
+    public ResponseEntity<SnapResponse> handle(@RequestBody {{ a.request }} req) {
+        String ref = req.partnerReferenceNo();
+        try {
+            SnapFields.require(ref, "partnerReferenceNo");
+{%- for f in a.fields %}
+            {{ f.ptype }} {{ f.name }} = {% if f.money %}SnapFields.amount(req.{{ f.name }}(), "{{ f.name }}"){% else %}SnapFields.require(req.{{ f.name }}(), "{{ f.name }}"){% endif %};
+{%- endfor %}
+            service.execute({% for f in a.fields %}{{ f.name }}{% if not loop.last %}, {% endif %}{% endfor %});
+            return SnapErrors.success(SERVICE_CODE, ref);
+        } catch (SnapRequestException e) {
+            return SnapErrors.fromRequest(e, SERVICE_CODE, ref);
+        } catch (ProcedureException e) {
+            return SnapErrors.fromProcedure(e, SERVICE_CODE, ERRORS, ref);
+        }
+    }
+}

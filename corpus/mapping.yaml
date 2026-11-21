@@ -1,0 +1,48 @@
+# Pemetaan procedure -> endpoint ala SNAP BI. DIPUTUSKAN TIM (Orang A).
+# Kode layanan 90-94 = ekstensi non-standar untuk P2P lending (cek dulu terhadap daftar resmi BI/ASPI).
+# Kode kasus di bawah masih ILUSTRASI: cocokkan dengan tabel response code resmi SNAP sebelum dipakai.
+# errors: awalan pesan RAISE EXCEPTION -> {http, case, message}; dicocokkan berurutan, yang pertama menang.
+procedures:
+  ajukan_pinjaman:
+    service: loan-submission
+    serviceCode: "90"
+    money: [p_jumlah]
+    errors:
+      "Borrower tidak ditemukan":                  {http: 404, case: "01", message: "Borrower Not Found"}
+      "Borrower belum verifikasi KYC":             {http: 403, case: "02", message: "KYC Not Verified"}
+      "Penghasilan borrower tidak memenuhi syarat": {http: 403, case: "03", message: "Income Not Eligible"}
+      "Limit pinjaman borrower tidak mencukupi":   {http: 403, case: "04", message: "Exceeds Loan Limit"}
+
+  danai_pinjaman:
+    service: loan-funding
+    serviceCode: "91"
+    money: [p_jumlah]
+    errors:
+      "Loan tidak ditemukan":                    {http: 404, case: "01", message: "Loan Not Found"}
+      "Lender tidak ditemukan":                  {http: 404, case: "02", message: "Lender Not Found"}
+      "Saldo lender tidak mencukupi":            {http: 403, case: "14", message: "Insufficient Funds"}
+      "Pendanaan melebihi sisa target pinjaman": {http: 403, case: "01", message: "Funding Exceeds Remaining Target"}
+      "Loan ":                                   {http: 403, case: "02", message: "Invalid Loan Status"}
+
+  cairkan_pinjaman:
+    service: loan-disbursement
+    serviceCode: "92"
+    errors:
+      "Loan tidak ditemukan":                                {http: 404, case: "01", message: "Loan Not Found"}
+      "Hanya pinjaman berstatus FUNDED yang bisa dicairkan": {http: 403, case: "02", message: "Invalid Loan Status"}
+
+  bayar_pinjaman:
+    service: loan-repayment
+    serviceCode: "93"
+    errors:
+      "Loan tidak ditemukan":           {http: 404, case: "01", message: "Loan Not Found"}
+      "Borrower tidak ditemukan":       {http: 404, case: "03", message: "Borrower Not Found"}
+      "Loan belum dicairkan":           {http: 403, case: "02", message: "Invalid Loan Status"}
+      "Saldo borrower tidak mencukupi": {http: 403, case: "14", message: "Insufficient Funds"}
+
+  batalkan_pinjaman:
+    service: loan-cancellation
+    serviceCode: "94"
+    errors:
+      "Loan tidak ditemukan":                              {http: 404, case: "01", message: "Loan Not Found"}
+      "Pinjaman tidak dapat dibatalkan setelah dicairkan": {http: 403, case: "02", message: "Invalid Loan Status"}
