@@ -1,0 +1,45 @@
+// DIHASILKAN OTOMATIS oleh migrator - jangan diedit manual.
+package com.p2p.equivalence;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+{% for t in models -%}
+import com.p2p.domain.{{ t.cls }};
+{% endfor %}
+/** Konversi baris teks (Gherkin / mapping) <-> entity. */
+public final class RowConverters {
+    private RowConverters() {}
+
+    public static String text(String v) { return v; }
+
+    public static BigDecimal numeric(String v) { return v == null ? null : new BigDecimal(v); }
+
+    public static Integer integer(String v) { return v == null ? null : Integer.valueOf(v); }
+
+    public static Boolean bool(String v) {
+        if (v == null) return null;
+        return switch (v.toLowerCase()) {
+            case "true", "t", "yes", "1" -> true;
+            case "false", "f", "no", "0" -> false;
+            default -> throw new IllegalArgumentException("boolean tidak valid: " + v);
+        };
+    }
+
+    public static LocalDate date(String v) { return v == null ? null : LocalDate.parse(v); }
+{% for t in models %}
+    public static {{ t.cls }} {{ t.var }}(Map<String, String> row) {
+        return new {{ t.cls }}({% for c in t.cols %}{{ conv[c.pg_type] }}(row.get("{{ c.name }}")){% if not loop.last %}, {% endif %}{% endfor %});
+    }
+
+    public static Map<String, Object> row({{ t.cls }} e) {
+        Map<String, Object> m = new LinkedHashMap<>();
+{%- for c in t.cols %}
+        m.put("{{ c.name }}", e.{{ c.getter }}());
+{%- endfor %}
+        return m;
+    }
+{% endfor -%}
+}

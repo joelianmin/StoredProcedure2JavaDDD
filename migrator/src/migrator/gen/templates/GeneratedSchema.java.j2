@@ -1,0 +1,35 @@
+// DIHASILKAN OTOMATIS oleh migrator - jangan diedit manual.
+package com.p2p.equivalence;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+
+/** Metadata skema dan signature procedure korpus. */
+public class GeneratedSchema implements SchemaInfo {
+    private static LinkedHashMap<String, String> cols(String... nameType) {
+        LinkedHashMap<String, String> m = new LinkedHashMap<>();
+        for (int i = 0; i < nameType.length; i += 2) m.put(nameType[i], nameType[i + 1]);
+        return m;
+    }
+
+    private static final List<TableInfo> TABLES = List.of(
+{%- for t in models %}
+            new TableInfo("{{ t.name }}", "{{ t.pk.name }}", cols({% for c in t.cols %}"{{ c.name }}", "{{ c.pg_type }}"{% if not loop.last %}, {% endif %}{% endfor %})){% if not loop.last %},{% endif %}
+{%- endfor %});
+
+    private static final List<ProcedureInfo> PROCEDURES = List.of(
+{%- for p in procs %}
+            new ProcedureInfo("{{ p.name }}", List.of({% for x in p.params %}"{{ x.name }}"{% if not loop.last %}, {% endif %}{% endfor %}),
+                    List.of({% for x in p.params %}"{{ x.type }}"{% if not loop.last %}, {% endif %}{% endfor %})){% if not loop.last %},{% endif %}
+{%- endfor %});
+
+    @Override
+    public List<TableInfo> tables() {
+        return TABLES;
+    }
+
+    @Override
+    public List<ProcedureInfo> procedures() {
+        return PROCEDURES;
+    }
+}

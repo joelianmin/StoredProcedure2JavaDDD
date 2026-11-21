@@ -16,7 +16,7 @@
     <description>Hasil migrasi stored procedure PL/pgSQL ke Spring Boot (DDD)</description>
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
-        <cucumber.version>7.15.0</cucumber.version>
+        <cucumber.version>7.22.1</cucumber.version>
     </properties>
     <dependencies>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
@@ -24,8 +24,6 @@
         <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId></dependency>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
         <dependency><groupId>io.cucumber</groupId><artifactId>cucumber-java</artifactId><version>${cucumber.version}</version><scope>test</scope></dependency>
-        <dependency><groupId>io.cucumber</groupId><artifactId>cucumber-junit-platform-engine</artifactId><version>${cucumber.version}</version><scope>test</scope></dependency>
-        <dependency><groupId>org.junit.platform</groupId><artifactId>junit-platform-suite</artifactId><scope>test</scope></dependency>
     </dependencies>
     <build>
         <plugins>

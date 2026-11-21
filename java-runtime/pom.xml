@@ -15,7 +15,7 @@
     <description>Runtime Java tetap yang disalin migrator ke proyek hasil generate</description>
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
-        <cucumber.version>7.15.0</cucumber.version>
+        <cucumber.version>7.22.1</cucumber.version>
     </properties>
     <dependencies>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>

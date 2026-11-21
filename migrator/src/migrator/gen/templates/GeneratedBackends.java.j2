@@ -1,0 +1,90 @@
+// DIHASILKAN OTOMATIS oleh migrator - jangan diedit manual.
+package com.p2p.equivalence;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.sql.DataSource;
+
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
+
+{% for t in models -%}
+import com.p2p.infrastructure.InMemory{{ t.cls }}Repository;
+import com.p2p.infrastructure.Jdbc{{ t.cls }}Repository;
+import com.p2p.repository.{{ t.cls }}Repository;
+{% endfor -%}
+{% for p in procs -%}
+import com.p2p.service.{{ p.cls }};
+{% endfor -%}
+import com.p2p.support.SnapshotUnitOfWork;
+import com.p2p.support.SpringTxUnitOfWork;
+import com.p2p.support.UnitOfWork;
+
+/** Tiga backend uji kesetaraan: legacy (CALL), jdbc (kode baru + PostgreSQL), memory (kode baru + Map). */
+public class GeneratedBackends implements BackendFactory {
+    private static final GeneratedSchema SCHEMA = new GeneratedSchema();
+
+    record Repos({% for t in models %}{{ t.cls }}Repository {{ t.var }}{% if not loop.last %}, {% endif %}{% endfor %}) {}
+
+    @Override
+    public SchemaInfo schema() {
+        return SCHEMA;
+    }
+
+    @Override
+    public List<Backend> create() {
+        return List.of(new LegacyBackend(SCHEMA, TestDatabases.legacy()), jdbc(), memory());
+    }
+
+    private Backend jdbc() {
+        DataSource ds = TestDatabases.baru();
+        JdbcTemplate jt = new JdbcTemplate(ds);
+        Repos r = new Repos({% for t in models %}new Jdbc{{ t.cls }}Repository(jt){% if not loop.last %}, {% endif %}{% endfor %});
+        UnitOfWork uow = new SpringTxUnitOfWork(new DataSourceTransactionManager(ds));
+        LegacyBackend tables = new LegacyBackend(SCHEMA, ds);   // hanya dipakai untuk reset/insert/dump p2p_baru
+        return new LambdaBackend("jdbc", tables::reset, (t, row) -> tables.insert(t, List.of(row)), tables::dump,
+                (p, a) -> invoke(p, a, r, uow));
+    }
+
+    private Backend memory() {
+{%- for t in models %}
+        InMemory{{ t.cls }}Repository {{ t.var }} = new InMemory{{ t.cls }}Repository();
+{%- endfor %}
+        Repos r = new Repos({% for t in models %}{{ t.var }}{% if not loop.last %}, {% endif %}{% endfor %});
+        UnitOfWork uow = new SnapshotUnitOfWork(List.of({% for t in models %}{{ t.var }}{% if not loop.last %}, {% endif %}{% endfor %}));
+        return new LambdaBackend("memory", () -> {
+{%- for t in models %}
+            {{ t.var }}.clear();
+{%- endfor %}
+        }, (t, row) -> save(r, t, row), () -> dump(r), (p, a) -> invoke(p, a, r, uow));
+    }
+
+    static void save(Repos r, String table, Map<String, String> row) {
+        switch (table) {
+{%- for t in models %}
+            case "{{ t.name }}" -> r.{{ t.var }}().insert(RowConverters.{{ t.var }}(row));
+{%- endfor %}
+            default -> throw new IllegalArgumentException("tabel tidak dikenal: " + table);
+        }
+    }
+
+    static Map<String, List<Map<String, Object>>> dump(Repos r) {
+        Map<String, List<Map<String, Object>>> out = new LinkedHashMap<>();
+{%- for t in models %}
+        out.put("{{ t.name }}", r.{{ t.var }}().findAll().stream().map(RowConverters::row).toList());
+{%- endfor %}
+        return out;
+    }
+
+    static void invoke(String procedure, List<String> a, Repos r, UnitOfWork uow) {
+        switch (procedure) {
+{%- for p in procs %}
+            case "{{ p.name }}" -> new {{ p.cls }}({% for t in p.repos %}r.{{ t }}(), {% endfor %}uow)
+                    .execute({% for x in p.params %}RowConverters.{{ conv[x.type] }}(a.get({{ loop.index0 }})){% if not loop.last %}, {% endif %}{% endfor %});
+{%- endfor %}
+            default -> throw new IllegalArgumentException("procedure tidak dikenal: " + procedure);
+        }
+    }
+}
