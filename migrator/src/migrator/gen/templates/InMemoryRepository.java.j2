@@ -1,0 +1,118 @@
+// DIHASILKAN OTOMATIS oleh migrator dari tabel `{{ t.name }}` - jangan diedit manual.
+package com.p2p.infrastructure;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.TreeMap;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Repository;
+
+import com.p2p.domain.{{ t.cls }};
+import com.p2p.repository.{{ t.cls }}Repository;
+import com.p2p.support.ProcedureException;
+import com.p2p.support.Snapshotable;
+import com.p2p.support.Sql;
+
+/** Repository berbasis Map (gaya semester lalu) yang meniru aturan kolom PostgreSQL dan bisa di-rollback. */
+@Repository
+@Profile("memory")
+public class InMemory{{ t.cls }}Repository implements {{ t.cls }}Repository, Snapshotable {
+    private TreeMap<{{ t.pk.jtype }}, {{ t.cls }}> data = new TreeMap<>();
+    private TreeMap<{{ t.pk.jtype }}, {{ t.cls }}> snapshot;
+
+    /** Meniru kolom: NOT NULL (23502) dan numeric(p,s) (pembulatan / 22003). */
+    private {{ t.cls }} checked({{ t.cls }} e) {
+        {{ t.cls }} c = e.copy();
+{%- for col in t.cols if col.not_null %}
+        if (c.{{ col.getter }}() == null) {
+            throw new ProcedureException("23502", "null value in column \"{{ col.name }}\" of relation \"{{ t.name }}\" violates not-null constraint");
+        }
+{%- endfor %}
+{%- for col in t.cols if col.precision %}
+        c.{{ col.setter }}(Sql.fitNumeric(c.{{ col.getter }}(), {{ col.precision }}, {{ col.scale }}));
+{%- endfor %}
+        return c;
+    }
+
+    @Override
+    public void save({{ t.cls }} e) {
+        {{ t.cls }} c = checked(e);
+        data.put(c.{{ t.pk.getter }}(), c);
+    }
+
+    @Override
+    public void insert({{ t.cls }} e) {
+        {{ t.cls }} c = checked(e);
+        if (data.containsKey(c.{{ t.pk.getter }}())) {
+            throw new ProcedureException("23505", "duplicate key value violates unique constraint \"{{ t.name }}_pkey\"");
+        }
+        data.put(c.{{ t.pk.getter }}(), c);
+    }
+
+    @Override
+    public Optional<{{ t.cls }}> findById({{ t.pk.jtype }} {{ t.pk.field }}) {
+        if ({{ t.pk.field }} == null) return Optional.empty();       // WHERE pk = NULL tidak cocok apa pun
+        return Optional.ofNullable(data.get({{ t.pk.field }})).map({{ t.cls }}::copy);
+    }
+
+    @Override
+    public List<{{ t.cls }}> findAll() {
+        List<{{ t.cls }}> out = new ArrayList<>();
+        data.values().forEach(e -> out.add(e.copy()));
+        return out;
+    }
+
+    @Override
+    public int deleteById({{ t.pk.jtype }} {{ t.pk.field }}) {
+        if ({{ t.pk.field }} == null) return 0;
+        return data.remove({{ t.pk.field }}) != null ? 1 : 0;
+    }
+{%- for f in t.finders %}
+
+    @Override
+    public List<{{ t.cls }}> findBy{{ f.suffix }}({{ f.params }}) {
+        List<{{ t.cls }}> out = new ArrayList<>();
+        for ({{ t.cls }} e : data.values()) {
+            if ({% for c in f.cols %}Sql.isTrue(Sql.eq(e.{{ c.getter }}(), {{ c.field }})){% if not loop.last %} && {% endif %}{% endfor %}) {
+                out.add(e.copy());
+            }
+        }
+        return out;
+    }
+{%- endfor %}
+{%- for f in t.deleters %}
+
+    @Override
+    public int deleteBy{{ f.suffix }}({{ f.params }}) {
+        int before = data.size();
+        data.values().removeIf(e -> {% for c in f.cols %}Sql.isTrue(Sql.eq(e.{{ c.getter }}(), {{ c.field }})){% if not loop.last %} && {% endif %}{% endfor %});
+        return before - data.size();
+    }
+{%- endfor %}
+
+    /** Kosongkan isi (dipakai test). */
+    public void clear() {
+        data.clear();
+    }
+
+    @Override
+    public void takeSnapshot() {
+        snapshot = new TreeMap<>();
+        data.forEach((k, v) -> snapshot.put(k, v.copy()));
+    }
+
+    @Override
+    public void restoreSnapshot() {
+        if (snapshot != null) data = snapshot;
+        snapshot = null;
+    }
+
+    @Override
+    public void discardSnapshot() {
+        snapshot = null;
+    }
+}

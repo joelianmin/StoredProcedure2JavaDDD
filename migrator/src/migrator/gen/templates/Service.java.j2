@@ -1,0 +1,49 @@
+// DIHASILKAN OTOMATIS oleh migrator dari {{ s.proc.source_file }} - jangan diedit manual.
+package com.p2p.service;
+
+import java.math.BigDecimal;
+{%- if s.uses_date %}
+import java.time.LocalDate;
+{%- endif %}
+import java.util.Optional;
+
+import org.springframework.stereotype.Service;
+
+{% for cls, field in s.repos -%}
+import com.p2p.domain.{{ cls }};
+import com.p2p.repository.{{ cls }}Repository;
+{% endfor -%}
+import com.p2p.support.ProcedureException;
+import com.p2p.support.Sql;
+import com.p2p.support.UnitOfWork;
+
+/**
+ * Terjemahan stored procedure {@code {{ s.proc.name }}({{ s.sql_sig }})}.
+ * Satu pemanggilan {@link #execute} = satu transaksi (exception membatalkan semua perubahan).
+ */
+@Service
+@SuppressWarnings({"unused", "UnusedAssignment"})
+public class {{ s.cls }} {
+{%- for cls, field in s.repos %}
+    private final {{ cls }}Repository {{ field }};
+{%- endfor %}
+    private final UnitOfWork unitOfWork;
+
+    public {{ s.cls }}({% for cls, field in s.repos %}{{ cls }}Repository {{ field }}, {% endfor %}UnitOfWork unitOfWork) {
+{%- for cls, field in s.repos %}
+        this.{{ field }} = {{ field }};
+{%- endfor %}
+        this.unitOfWork = unitOfWork;
+    }
+
+    public void execute({{ s.signature }}) {
+        unitOfWork.run(() -> {
+{%- for d in s.decls %}
+            {{ d }}
+{%- endfor %}
+{% for line in s.body %}
+{{ line }}
+{%- endfor %}
+        });
+    }
+}

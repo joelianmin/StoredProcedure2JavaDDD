@@ -1,0 +1,76 @@
+// DIHASILKAN OTOMATIS oleh migrator dari tabel `{{ t.name }}` - jangan diedit manual.
+package com.p2p.infrastructure;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+import com.p2p.domain.{{ t.cls }};
+import com.p2p.repository.{{ t.cls }}Repository;
+
+/** Repository JDBC ke PostgreSQL (tabel saja, tanpa stored procedure). */
+@Repository
+@Profile("postgres")
+public class Jdbc{{ t.cls }}Repository implements {{ t.cls }}Repository {
+    private static final String COLS = "{% for c in t.cols %}{{ c.name }}{% if not loop.last %}, {% endif %}{% endfor %}";
+    private static final RowMapper<{{ t.cls }}> MAPPER = (rs, i) -> new {{ t.cls }}(
+{%- for c in t.cols %}
+            {% if c.jtype == "String" %}rs.getString("{{ c.name }}"){% elif c.jtype == "BigDecimal" %}rs.getBigDecimal("{{ c.name }}"){% else %}rs.getObject("{{ c.name }}", {{ c.jtype }}.class){% endif %}{% if not loop.last %},{% endif %}
+{%- endfor %});
+
+    private final JdbcTemplate jdbc;
+
+    public Jdbc{{ t.cls }}Repository(JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
+    }
+
+    private Object[] values({{ t.cls }} e) {
+        return new Object[] {{ '{' }}{% for c in t.cols %}e.{{ c.getter }}(){% if not loop.last %}, {% endif %}{% endfor %}{{ '}' }};
+    }
+
+    @Override
+    public void save({{ t.cls }} e) {
+        jdbc.update("INSERT INTO {{ t.name }} (" + COLS + ") VALUES ({% for c in t.cols %}?{% if not loop.last %}, {% endif %}{% endfor %})"
+                + " ON CONFLICT ({{ t.pk.name }}) DO UPDATE SET {% for c in t.cols if not c.pk %}{{ c.name }} = EXCLUDED.{{ c.name }}{% if not loop.last %}, {% endif %}{% endfor %}", values(e));
+    }
+
+    @Override
+    public void insert({{ t.cls }} e) {
+        jdbc.update("INSERT INTO {{ t.name }} (" + COLS + ") VALUES ({% for c in t.cols %}?{% if not loop.last %}, {% endif %}{% endfor %})", values(e));
+    }
+
+    @Override
+    public Optional<{{ t.cls }}> findById({{ t.pk.jtype }} {{ t.pk.field }}) {
+        return jdbc.query("SELECT " + COLS + " FROM {{ t.name }} WHERE {{ t.pk.name }} = ?", MAPPER, {{ t.pk.field }}).stream().findFirst();
+    }
+
+    @Override
+    public List<{{ t.cls }}> findAll() {
+        return jdbc.query("SELECT " + COLS + " FROM {{ t.name }} ORDER BY {{ t.pk.name }}", MAPPER);
+    }
+
+    @Override
+    public int deleteById({{ t.pk.jtype }} {{ t.pk.field }}) {
+        return jdbc.update("DELETE FROM {{ t.name }} WHERE {{ t.pk.name }} = ?", {{ t.pk.field }});
+    }
+{%- for f in t.finders %}
+
+    @Override
+    public List<{{ t.cls }}> findBy{{ f.suffix }}({{ f.params }}) {
+        return jdbc.query("SELECT " + COLS + " FROM {{ t.name }} WHERE {% for c in f.cols %}{{ c.name }} = ?{% if not loop.last %} AND {% endif %}{% endfor %} ORDER BY {{ t.pk.name }}", MAPPER, {{ f.args }});
+    }
+{%- endfor %}
+{%- for f in t.deleters %}
+
+    @Override
+    public int deleteBy{{ f.suffix }}({{ f.params }}) {
+        return jdbc.update("DELETE FROM {{ t.name }} WHERE {% for c in f.cols %}{{ c.name }} = ?{% if not loop.last %} AND {% endif %}{% endfor %}", {{ f.args }});
+    }
+{%- endfor %}
+}

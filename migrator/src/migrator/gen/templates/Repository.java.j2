@@ -1,0 +1,34 @@
+// DIHASILKAN OTOMATIS oleh migrator dari tabel `{{ t.name }}` - jangan diedit manual.
+package com.p2p.repository;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+import com.p2p.domain.{{ t.cls }};
+
+public interface {{ t.cls }}Repository {
+    /** Simpan (insert atau update) berdasarkan primary key. */
+    void save({{ t.cls }} entity);
+
+    /** Insert baris baru; PK ganda -> ProcedureException 23505. */
+    void insert({{ t.cls }} entity);
+
+    Optional<{{ t.cls }}> findById({{ t.pk.jtype }} {{ t.pk.field }});
+
+    /** Semua baris, urut primary key. */
+    List<{{ t.cls }}> findAll();
+
+    int deleteById({{ t.pk.jtype }} {{ t.pk.field }});
+{%- for f in t.finders %}
+
+    /** WHERE {% for c in f.cols %}{{ c.name }} = ?{% if not loop.last %} AND {% endif %}{% endfor %} ORDER BY {{ t.pk.name }} */
+    List<{{ t.cls }}> findBy{{ f.suffix }}({{ f.params }});
+{%- endfor %}
+{%- for f in t.deleters %}
+
+    /** DELETE ... WHERE {% for c in f.cols %}{{ c.name }} = ?{% if not loop.last %} AND {% endif %}{% endfor %} */
+    int deleteBy{{ f.suffix }}({{ f.params }});
+{%- endfor %}
+}

@@ -1,0 +1,48 @@
+// DIHASILKAN OTOMATIS oleh migrator dari tabel `{{ t.name }}` - jangan diedit manual.
+package com.p2p.domain;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Objects;
+
+/** Entity dari tabel `{{ t.name }}`. */
+public class {{ t.cls }} {
+{%- for c in t.cols %}
+    private {{ c.jtype }} {{ c.field }};{% if c.precision %}   // numeric({{ c.precision }},{{ c.scale }}){% endif %}{% if c.pk %}   // PK{% endif %}
+{%- endfor %}
+
+    public {{ t.cls }}({% for c in t.cols %}{{ c.jtype }} {{ c.field }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+{%- for c in t.cols %}
+        this.{{ c.field }} = {{ c.field }};
+{%- endfor %}
+    }
+{% for c in t.cols %}
+    public {{ c.jtype }} {{ c.getter }}() {
+        return {{ c.field }};
+    }
+
+    public void {{ c.setter }}({{ c.jtype }} {{ c.field }}) {
+        this.{{ c.field }} = {{ c.field }};
+    }
+{% endfor %}
+    public {{ t.cls }} copy() {
+        return new {{ t.cls }}({% for c in t.cols %}{{ c.field }}{% if not loop.last %}, {% endif %}{% endfor %});
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof {{ t.cls }} other)) return false;
+        return {% for c in t.cols %}Objects.equals({{ c.field }}, other.{{ c.field }}){% if not loop.last %}
+            && {% endif %}{% endfor %};
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash({% for c in t.cols %}{{ c.field }}{% if not loop.last %}, {% endif %}{% endfor %});
+    }
+
+    @Override
+    public String toString() {
+        return "{{ t.cls }}[" + {% for c in t.cols %}"{{ c.name }}=" + {{ c.field }}{% if not loop.last %} + ", " + {% endif %}{% endfor %} + "]";
+    }
+}
