@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.ServiceLoader;
 
 import io.cucumber.datatable.DataTable;
+import io.cucumber.java.After;
 import io.cucumber.java.Before;
 import io.cucumber.java.Scenario;
 import io.cucumber.java.en.Given;
@@ -22,6 +23,7 @@ public class EquivalenceSteps {
 
     private String scenario;
     private String procedure;
+    private boolean recorded;
     private final Map<String, Outcome> outcomes = new HashMap<>();
 
     @Before
@@ -33,6 +35,17 @@ public class EquivalenceSteps {
         }
         backends.forEach(Backend::reset);
         scenario = sc.getName();
+    }
+
+    /** Skenario yang gagal sebelum perbandingan (seed error, harapan legacy salah, ...) tetap tercatat TIDAK setara. */
+    @After
+    public void after(Scenario sc) {
+        if (recorded || !sc.isFailed() || backends == null) return;
+        String proc = procedure == null ? "(tidak diketahui)" : procedure;
+        for (Backend b : backends.subList(1, backends.size())) {
+            EquivalenceRecorder.record(scenario, proc, b.name(), false,
+                    List.of("skenario gagal sebelum perbandingan selesai (lihat output Cucumber)"));
+        }
     }
 
     private static String value(String v) {
@@ -89,6 +102,7 @@ public class EquivalenceSteps {
             if (!o.equivalentTo(lamaOutcome)) diffs.add("hasil: lama=" + lamaOutcome + " baru=" + o);
             diffs.addAll(TableDiff.compare(factory.schema(), lamaDump, b.dump()));
             EquivalenceRecorder.record(scenario, procedure, b.name(), diffs.isEmpty(), diffs);
+            recorded = true;
             diffs.forEach(d -> all.add("[" + b.name() + "] " + d));
         }
         if (!all.isEmpty()) throw new AssertionError("TIDAK SETARA:\n  " + String.join("\n  ", all));

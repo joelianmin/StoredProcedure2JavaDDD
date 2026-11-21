@@ -13,28 +13,31 @@ Acuan kebenaran = procedure lama yang dijalankan dengan `CALL` di PostgreSQL.
 | bayar_pinjaman | LAYAK |
 | cairkan_pinjaman | LAYAK |
 | danai_pinjaman | LAYAK |
+| uji_and_pendek | LAYAK |
+| uji_found_for | LAYAK |
+| uji_null_cabang | LAYAK |
 
 ## Metrik (kriteria dosen)
 
 ### Keefektifan
 
-- Procedure diterjemahkan tanpa konstruksi tak didukung: 5/5 (100%)
-- Skenario setara varian jdbc: 34/34 (100%)
-- Skenario setara varian memory: 34/34 (100%)
+- Procedure diterjemahkan tanpa konstruksi tak didukung: 8/8 (100%)
+- Skenario setara varian jdbc: 40/40 (100%)
+- Skenario setara varian memory: 40/40 (100%)
 - Jebakan terdeteksi analyzer: J1, J2, J3, J4, J5, J6, J10, J11, J12
 - Jebakan yang punya skenario setara (disebut di nama skenario): J1, J2, J3, J4, J5, J6, J10, J11, J12 (9/12)
 - Uji mutasi: ditunda (mode spike)
 
 ### Efisiensi
 
-- Waktu jalan `migrator generate` (5 procedure): 0.224 detik
+- Waktu jalan `migrator generate` (5 procedure): 0.438 detik
 - Eksperimen migrasi manual: belum diisi (`experiments/manual/waktu.csv`)
 
 ### Kebermanfaatan
 
 - Bug transaksi repo semester lalu (debit lender sebelum validasi) tidak terulang: ya, skenario J4 setara di jdbc, memory
-- Skenario yang lulus tanpa database (repository Map): 34
-- Pernyataan hasil terjemahan yang bisa dilacak ke baris SQL asal: 59
+- Skenario yang lulus tanpa database (repository Map): 40
+- Pernyataan hasil terjemahan yang bisa dilacak ke baris SQL asal: 75
 - Seluruh proses lokal dan deterministik (tanpa LLM, tanpa layanan luar)
 
 ## ajukan_pinjaman — LAYAK
@@ -52,7 +55,7 @@ Acuan kebenaran = procedure lama yang dijalankan dengan `CALL` di PostgreSQL.
 
 ## batalkan_pinjaman — LAYAK
 
-- Sumber: `batalkan_pinjaman.sql` (25 baris SQL) → `BatalkanPinjamanService` (60 baris Java logika)
+- Sumber: `batalkan_pinjaman.sql` (25 baris SQL) → `BatalkanPinjamanService` (61 baris Java logika)
 - Tabel dibaca: funding, loan · ditulis: borrower, funding, lender, loan
 - Konstruksi: Delete, ForQuery, If, Raise, SelectInto, Update · cabang IF/ELSIF/ELSE: 2
 - Endpoint REST SNAP: ya
@@ -96,3 +99,40 @@ Acuan kebenaran = procedure lama yang dijalankan dengan `CALL` di PostgreSQL.
   - J2 baris 42: (v_terkumpul + p_jumlah): p_jumlah bisa NULL
 - Kesetaraan varian **jdbc**: 11/11 skenario setara
 - Kesetaraan varian **memory**: 11/11 skenario setara
+
+## uji_and_pendek — LAYAK
+
+- Sumber: `uji_and_pendek.sql` (14 baris SQL) → `UjiAndPendekService` (18 baris Java logika)
+- Tabel dibaca: - · ditulis: -
+- Konstruksi: Assign, If, Raise · cabang IF/ELSIF/ELSE: 2
+- Endpoint REST SNAP: tidak (tidak ada di mapping.yaml)
+- Jebakan semantik terdeteksi: J1 (NULL di kondisi IF), J2 (aritmetika dengan NULL), J6 (pembagian numeric)
+  - J1 baris 7: ((p_jumlah / p_tenor) > 1000): (p_jumlah / p_tenor) bisa NULL
+  - J1 baris 7: (p_tenor > 0): p_tenor bisa NULL
+  - J2 baris 7: (p_jumlah / p_tenor): p_jumlah, p_tenor bisa NULL
+  - J2 baris 10: (p_jumlah / p_tenor): p_jumlah, p_tenor bisa NULL
+- Kesetaraan varian **jdbc**: 2/2 skenario setara
+- Kesetaraan varian **memory**: 2/2 skenario setara
+
+## uji_found_for — LAYAK
+
+- Sumber: `uji_found_for.sql` (13 baris SQL) → `UjiFoundForService` (30 baris Java logika)
+- Tabel dibaca: funding · ditulis: lender
+- Konstruksi: ForQuery, If, Raise, Update · cabang IF/ELSIF/ELSE: 1
+- Endpoint REST SNAP: tidak (tidak ada di mapping.yaml)
+- Jebakan semantik terdeteksi: J4 (rollback saat RAISE), J11 (simpan ke numeric(p,s)), J12 (error bawaan database)
+  - J4 baris 11: RAISE setelah penulisan: semua perubahan harus di-rollback
+- Kesetaraan varian **jdbc**: 2/2 skenario setara
+- Kesetaraan varian **memory**: 2/2 skenario setara
+
+## uji_null_cabang — LAYAK
+
+- Sumber: `uji_null_cabang.sql` (18 baris SQL) → `UjiNullCabangService` (22 baris Java logika)
+- Tabel dibaca: - · ditulis: -
+- Konstruksi: Assign, If, Raise · cabang IF/ELSIF/ELSE: 3
+- Endpoint REST SNAP: tidak (tidak ada di mapping.yaml)
+- Jebakan semantik terdeteksi: J1 (NULL di kondisi IF)
+  - J1 baris 12: (v_extra > 50): v_extra bisa NULL
+  - J1 baris 15: ('APPROVED' <> v_s): v_s bisa NULL
+- Kesetaraan varian **jdbc**: 2/2 skenario setara
+- Kesetaraan varian **memory**: 2/2 skenario setara

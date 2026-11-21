@@ -32,19 +32,19 @@ public class {{ a.controller }} {
     }
 
     @PostMapping("/v1.0/{{ a.service }}")
-    public ResponseEntity<SnapResponse> handle(@RequestBody {{ a.request }} req) {
-        String ref = req.partnerReferenceNo();
+    public ResponseEntity<SnapResponse> handle(@RequestBody {{ a.request }} _req) {
+        String _ref = _req.partnerReferenceNo();
         try {
-            SnapFields.require(ref, "partnerReferenceNo");
+            SnapFields.require(_ref, "partnerReferenceNo");
 {%- for f in a.fields %}
-            {{ f.ptype }} {{ f.name }} = {% if f.money %}SnapFields.amount(req.{{ f.name }}(), "{{ f.name }}"){% else %}SnapFields.require(req.{{ f.name }}(), "{{ f.name }}"){% endif %};
+            {{ f.ptype }} {{ f.name }} = {% if f.money %}SnapFields.amount(_req.{{ f.name }}(), "{{ f.name }}"){% else %}SnapFields.require(_req.{{ f.name }}(), "{{ f.name }}"){% endif %};
 {%- endfor %}
-            service.execute({% for f in a.fields %}{{ f.name }}{% if not loop.last %}, {% endif %}{% endfor %});
-            return SnapErrors.success(SERVICE_CODE, ref);
+            this.service.execute({% for f in a.fields %}{{ f.name }}{% if not loop.last %}, {% endif %}{% endfor %});
+            return SnapErrors.success(SERVICE_CODE, _ref);
         } catch (SnapRequestException e) {
-            return SnapErrors.fromRequest(e, SERVICE_CODE, ref);
+            return SnapErrors.fromRequest(e, SERVICE_CODE, _ref);
         } catch (ProcedureException e) {
-            return SnapErrors.fromProcedure(e, SERVICE_CODE, ERRORS, ref);
+            return SnapErrors.fromProcedure(e, SERVICE_CODE, ERRORS, _ref);
         }
     }
 }

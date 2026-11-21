@@ -174,17 +174,36 @@ def _where(node, table: Table, scope: Scope, line: int) -> Where:
     if node is None:
         raise Unsupported("WHERE", line, "wajib ada")
     terms = node.args if isinstance(node, A.BoolExpr) and node.boolop == BoolExprType.AND_EXPR else (node,)
-    plain = Scope(scope.variables, scope.records, None)
+    with_cols = Scope(scope.variables, scope.records, table)
     out = []
     for t in terms:
         if not (isinstance(t, A.A_Expr) and t.kind == A_Expr_Kind.AEXPR_OP and t.name[0].sval == "="
                 and isinstance(t.lexpr, A.ColumnRef)):
             raise Unsupported("WHERE", line, "harus berbentuk kolom = ekspresi (gabungan AND)")
-        col = t.lexpr.fields[-1].sval
-        if not table.column(col):
-            raise Unsupported("WHERE", line, f"kolom {col} tidak ada di {table.name}")
-        out.append((col, to_expr(t.rexpr, plain, line)))
+        col = _column_name(t.lexpr, table, line, "WHERE")
+        rhs = to_expr(t.rexpr, with_cols, line)          # nama yang variabel sekaligus kolom -> Unsupported
+        if _has_column_ref(rhs):
+            raise Unsupported("WHERE", line, "sisi kanan tidak boleh merujuk kolom (harus nilai/variabel)")
+        out.append((col, rhs))
     return tuple(out)
+
+
+def _column_name(ref: A.ColumnRef, table: Table, line: int, where: str) -> str:
+    """Kolom tabel target; qualifier (bila ada) harus nama tabel itu sendiri."""
+    parts = [f.sval if isinstance(f, A.String) else "*" for f in ref.fields]
+    if "*" in parts or len(parts) > 2 or (len(parts) == 2 and parts[0] != table.name):
+        raise Unsupported(where, line, f"{'.'.join(parts)} bukan kolom tabel {table.name}")
+    if not table.column(parts[-1]):
+        raise Unsupported(where, line, f"kolom {parts[-1]} tidak ada di {table.name}")
+    return parts[-1]
+
+
+def _has_column_ref(e) -> bool:
+    if isinstance(e, ColumnRef):
+        return True
+    kids = (e.left, e.right) if isinstance(e, Binary) else (e.arg,) if isinstance(e, (Unary, IsNull)) \
+        else e.args if isinstance(e, FuncCall) else ()
+    return any(_has_column_ref(k) for k in kids)
 
 
 def _ret(st) -> bool:
@@ -210,10 +229,7 @@ def _plain_select(sel, tables, line) -> tuple[Table, tuple[str, ...]]:
     for t in sel.targetList:
         if not isinstance(t.val, A.ColumnRef) or t.name:
             raise Unsupported("SELECT", line, "daftar kolom harus nama kolom polos")
-        c = t.val.fields[-1]
-        if not isinstance(c, A.String) or not table.column(c.sval):
-            raise Unsupported("SELECT", line, "kolom tidak dikenal atau *")
-        cols.append(c.sval)
+        cols.append(_column_name(t.val, table, line, "SELECT"))
     return table, tuple(cols)
 
 
@@ -241,6 +257,8 @@ class _ProcParser:
                 raise Unsupported("parameter OUT/INOUT", None, p.name)
             if p.argType.typmods:
                 raise Unsupported("parameter bertipe (p,s)", None, p.name)
+            if p.defexpr is not None:
+                raise Unsupported("DEFAULT parameter", None, p.name)
             params.append(Param(p.name, _pg_type(p.argType.names[-1].sval, None)))
         fn = pglast.parse_plpgsql(sql)[0]["PLpgSQL_function"]
         pnames = {p.name for p in params}
@@ -251,6 +269,8 @@ class _ProcParser:
             (kind, v), = d.items()
             if kind == "PLpgSQL_var" and v["refname"] not in pnames and v["refname"] != "found":
                 tname = v["datatype"]["PLpgSQL_type"]["typname"]
+                if v.get("notnull") or v.get("isconst"):
+                    raise Unsupported("variabel NOT NULL/CONSTANT", self.line(v), v["refname"])
                 if "(" in tname:
                     raise Unsupported("variabel bertipe (p,s)", self.line(v), v["refname"])
                 variables[v["refname"]] = _pg_type(tname, self.line(v))
@@ -300,7 +320,10 @@ class _ProcParser:
             (dkind, d), = self.datums[s["varno"]].items()
             if dkind != "PLpgSQL_var" or d["refname"] not in self.scope.variables:
                 raise Unsupported("assignment", line, "target harus variabel skalar")
-            text = s["expr"]["PLpgSQL_expr"]["query"].split(":=", 1)[1]
+            m = re.match(r"\s*[\w\"]+\s*(:=|=)", s["expr"]["PLpgSQL_expr"]["query"])
+            if not m:
+                raise Unsupported("assignment", line, s["expr"]["PLpgSQL_expr"]["query"])
+            text = s["expr"]["PLpgSQL_expr"]["query"][m.end():]
             return Assign(d["refname"], parse_expr_text(text, self.scope, line), line)
         if kind == "PLpgSQL_stmt_fors":
             return self.fors(s, line)

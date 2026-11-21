@@ -34,6 +34,9 @@ def load_corpus(schema: Path, procs_dir: Path):
             analyses.append(a)
         except Unsupported as e:
             analyses.append(unsupported_analysis(f.stem, f.name, e))
+        except Exception as e:                                   # bug migrator: tandai, jangan crash
+            analyses.append(unsupported_analysis(f.stem, f.name,
+                                                 Unsupported("kesalahan internal migrator", None, repr(e))))
     return tables, procs, analyses
 
 
@@ -53,6 +56,9 @@ def generate_project(schema: Path, procs_dir: Path, mapping: Path | None, featur
             ok_procs.append(p)
         except Unsupported as e:
             by_name[p.name] = unsupported_analysis(p.name, p.source_file, e)
+        except Exception as e:
+            by_name[p.name] = unsupported_analysis(p.name, p.source_file,
+                                                   Unsupported("kesalahan internal generator", None, repr(e)))
     analyses = [by_name[a.procedure] for a in analyses]
     models = table_models(tables, ok_procs)
 

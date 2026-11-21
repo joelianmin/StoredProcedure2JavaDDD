@@ -20,7 +20,7 @@ public final class PgSql {
 
     public static void insert(Connection c, SchemaInfo.TableInfo t, Map<String, String> row) throws SQLException {
         List<String> cols = new ArrayList<>(row.keySet());
-        String sql = "INSERT INTO " + t.name() + " (" + String.join(", ", cols) + ") VALUES ("
+        String sql = "INSERT INTO " + q(t.name()) + " (" + cols.stream().map(PgSql::q).collect(Collectors.joining(", ")) + ") VALUES ("
                 + cols.stream().map(k -> "?::" + type(t, k)).collect(Collectors.joining(", ")) + ")";
         try (PreparedStatement ps = c.prepareStatement(sql)) {
             for (int i = 0; i < cols.size(); i++) bind(ps, i + 1, row.get(cols.get(i)));
@@ -57,7 +57,7 @@ public final class PgSql {
         for (SchemaInfo.TableInfo t : schema.tables()) {
             List<Map<String, Object>> rows = new ArrayList<>();
             try (Statement st = c.createStatement();
-                 ResultSet rs = st.executeQuery("SELECT * FROM " + t.name() + " ORDER BY " + t.pk())) {
+                 ResultSet rs = st.executeQuery("SELECT * FROM " + q(t.name()) + " ORDER BY " + q(t.pk()))) {
                 while (rs.next()) {
                     Map<String, Object> row = new LinkedHashMap<>();
                     for (String col : t.columnTypes().keySet()) row.put(col, normalize(rs.getObject(col)));
@@ -69,6 +69,11 @@ public final class PgSql {
         return out;
     }
 
+    /** Identifier SQL selalu dikutip (aman untuk keyword dan huruf besar). */
+    public static String q(String ident) {
+        return "\"" + ident.replace("\"", "\"\"") + "\"";
+    }
+
     public static Object normalize(Object v) {
         if (v instanceof java.sql.Date d) return d.toLocalDate();
         return v;
@@ -76,7 +81,7 @@ public final class PgSql {
 
     public static void truncateAll(Connection c, SchemaInfo schema) throws SQLException {
         try (Statement st = c.createStatement()) {
-            st.execute("TRUNCATE " + schema.tables().stream().map(SchemaInfo.TableInfo::name)
+            st.execute("TRUNCATE " + schema.tables().stream().map(t -> q(t.name()))
                     .collect(Collectors.joining(", ")));
         }
     }

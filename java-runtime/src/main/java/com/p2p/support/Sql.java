@@ -133,6 +133,9 @@ public final class Sql {
     /** IF di PL/pgSQL hanya masuk bila kondisi TRUE; NULL diperlakukan seperti FALSE. */
     public static boolean isTrue(Boolean b) { return Boolean.TRUE.equals(b); }
 
+    /** Untuk AND yang berhenti di sisi kiri FALSE (seperti PostgreSQL). */
+    public static boolean isFalse(Boolean b) { return Boolean.FALSE.equals(b); }
+
     // ------------------------------------------------------------------ RAISE (J10)
     /** Setiap % diganti argumen berikutnya, %% menjadi %, NULL menjadi &lt;NULL&gt;. */
     public static String format(String template, Object... args) {

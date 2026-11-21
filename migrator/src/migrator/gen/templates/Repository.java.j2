@@ -17,6 +17,9 @@ public interface {{ t.cls }}Repository {
 
     Optional<{{ t.cls }}> findById({{ t.pk.jtype }} {{ t.pk.field }});
 
+    /** Baca untuk diubah (JDBC: SELECT ... FOR UPDATE, agar read-modify-write atomik seperti UPDATE). */
+    Optional<{{ t.cls }}> findByIdForUpdate({{ t.pk.jtype }} {{ t.pk.field }});
+
     /** Semua baris, urut primary key. */
     List<{{ t.cls }}> findAll();
 

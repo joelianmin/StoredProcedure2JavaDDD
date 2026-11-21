@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ..analyzer import Env
+from ..analyzer import Env, _exprs_of
 from ..ir import (Assign, Binary, ColumnRef, Const, Delete, Expr, FieldRef, ForQuery, Found, FuncCall, If,
                   Insert, IsNull, Procedure, Raise, Return, SelectInto, Table, Unary, Update, VarRef, Where,
                   walk)
-from ..naming import getter, java_class, java_field, member_names, setter
+from ..naming import getter, java_class, java_field, member_names, setter, sql_ident
 from ..parse import Unsupported
 
 JTYPE = {"text": "String", "numeric": "BigDecimal", "integer": "Integer", "boolean": "Boolean",
@@ -40,6 +40,11 @@ class ColModel:
     pk: bool
     precision: int | None
     scale: int | None
+
+    @property
+    def sql(self) -> str:
+        """Nama kolom untuk SQL di dalam string Java (dikutip bila perlu)."""
+        return sql_ident(self.name).replace('"', '\\"')
 
 
 @dataclass(frozen=True)
@@ -74,6 +79,10 @@ class TableModel:
     @property
     def var(self) -> str:
         return self.cls[:1].lower() + self.cls[1:]
+
+    @property
+    def sql(self) -> str:
+        return sql_ident(self.name).replace('"', '\\"')
 
     def col(self, name: str) -> ColModel:
         return next(c for c in self.cols if c.name == name)
@@ -116,9 +125,12 @@ class ServiceGen:
         self.names = member_names(proc, repo_fields)
         self.uses_found = any(self._has_found(s) for s in walk(proc.body))
         self.counter = 0
+        params = {x.name for x in proc.params}
         for s in walk(proc.body):
-            if isinstance(s, Assign) and s.target in {x.name for x in proc.params}:
+            if isinstance(s, Assign) and s.target in params:
                 raise Unsupported("assignment ke parameter", s.line, s.target)
+            if isinstance(s, SelectInto) and params & set(s.targets):
+                raise Unsupported("SELECT INTO ke parameter", s.line, ", ".join(sorted(params & set(s.targets))))
 
     # ------------------------------------------------------------ util
     def repo(self, table: str) -> str:
@@ -127,14 +139,7 @@ class ServiceGen:
     def _has_found(self, s) -> bool:
         def has(e):
             return isinstance(e, Found) or any(has(c) for c in _kids(e))
-        exprs = []
-        if isinstance(s, If):
-            exprs = [c for c, _ in s.branches]
-        elif isinstance(s, Assign):
-            exprs = [s.value]
-        elif isinstance(s, Raise):
-            exprs = list(s.params)
-        return any(has(e) for e in exprs)
+        return any(has(e) for e in _exprs_of(s))
 
     def nn(self, e: Expr, row: str | None = None) -> bool:
         return self.readable and not self.env.nullable(e, row)
@@ -155,6 +160,8 @@ class ServiceGen:
             raise Unsupported("konversi numeric -> integer", None, "pembulatan implisit tidak didukung")
         if t is None and want and isinstance(e, Const):
             return f"({JTYPE[want]}) null"
+        if isinstance(e, Const) and want and t != want and not (want == "numeric" and t == "integer"):
+            raise Unsupported("literal perlu cast implisit", None, f"'{e.value}' ({t}) ke {want}")
         return code
 
     def expr(self, e: Expr, row: str | None = None) -> str:
@@ -173,7 +180,7 @@ class ServiceGen:
         if isinstance(e, FieldRef):
             return f"{self.names[e.record]}.{getter(e.field)}()"
         if isinstance(e, ColumnRef):
-            return f"row.{getter(e.name)}()"
+            return f"_row.{getter(e.name)}()"
         if isinstance(e, Found):
             return "found"
         if isinstance(e, IsNull):
@@ -192,7 +199,11 @@ class ServiceGen:
                 scale = self.coerce(e.args[1], "integer", row) if len(e.args) > 1 else "0"
                 return f"Sql.round({self.coerce(e.args[0], 'numeric', row)}, {scale})"
             t = self.ty(e, row)
-            return f"Sql.coalesce({', '.join(self.coerce(a, t, row) for a in e.args)})"
+            parts = [self.coerce(a, t, row) for a in e.args]
+            code = parts[-1]
+            for a in reversed(parts[:-1]):
+                code = f"({a} != null ? {a} : {code})"
+            return code
         if isinstance(e, Binary):
             return self.binary(e, row)
         raise Unsupported("ekspresi", None, type(e).__name__)
@@ -204,7 +215,9 @@ class ServiceGen:
             l, r = self.expr(e.left, row), self.expr(e.right, row)
             if both_nn:
                 return f"({l} {'&&' if e.op == 'AND' else '||'} {r})"
-            return f"Sql.{e.op.lower()}({l}, {r})"
+            if e.op == "AND":
+                return f"(Sql.isFalse({l}) ? Boolean.FALSE : Sql.and({l}, {r}))"
+            return f"(Sql.isTrue({l}) ? Boolean.TRUE : Sql.or({l}, {r}))"
         if e.op == "||":
             return f"Sql.concat({self.expr(e.left, row)}, {self.expr(e.right, row)})"
         if e.op in CMP_HELPER:
@@ -255,7 +268,7 @@ class ServiceGen:
         if isinstance(s, SelectInto):
             m = self.models[s.table]
             self.counter += 1
-            var = f"{m.var}{self.counter}"
+            var = f"_{m.var}{self.counter}"
             out = head + [f"{p}Optional<{m.cls}> {var} = {self.repo(s.table)}.findById({self.coerce(s.key, m.pk.pg_type)});"]
             if self.uses_found:
                 out.append(f"{p}found = {var}.isPresent();")
@@ -287,13 +300,18 @@ class ServiceGen:
             args = ", ".join(self.coerce(v, m.col(c).pg_type) for c, v in s.where)
             rec = self.names[s.record]
             out = head[:]
+            self.counter += 1
+            it = f"_iterated{self.counter}"
             if self.uses_found:
-                out.append(f"{p}found = false;")
+                out.append(f"{p}boolean {it} = false;")
             out.append(f"{p}for ({m.cls} {rec} : {self.repo(s.table)}.findBy{f.suffix}({args})) {{")
             if self.uses_found:
-                out.append(f"{p}    found = true;")
+                out.append(f"{p}    {it} = true;")
             out += self.stmts(s.body, ind + 1)
-            return out + [f"{p}}}"]
+            out.append(f"{p}}}")
+            if self.uses_found:
+                out.append(f"{p}found = {it};")
+            return out
         if isinstance(s, Raise):
             if "%" in s.message:
                 args = "".join(", " + self.expr(a) for a in s.params)
@@ -315,22 +333,22 @@ class ServiceGen:
         body = []
         if needs_tmp:
             for i, (c, v) in enumerate(s.sets):
-                body.append(f"{m.col(c).jtype} new{i} = {self.coerce(v, m.col(c).pg_type, s.table)};")
+                body.append(f"{m.col(c).jtype} _new{i} = {self.coerce(v, m.col(c).pg_type, s.table)};")
             for i, (c, _) in enumerate(s.sets):
-                body.append(f"row.{m.col(c).setter}(new{i});")
+                body.append(f"_row.{m.col(c).setter}(_new{i});")
         else:
             for c, v in s.sets:
-                body.append(f"row.{m.col(c).setter}({self.coerce(v, m.col(c).pg_type, s.table)});")
-        body.append(f"{self.repo(s.table)}.save(row);")
+                body.append(f"_row.{m.col(c).setter}({self.coerce(v, m.col(c).pg_type, s.table)});")
+        body.append(f"{self.repo(s.table)}.save(_row);")
         if _where_cols(s.where) == (m.pk.name,):
             key = self.coerce(s.where[0][1], m.pk.pg_type)
             self.counter += 1
-            hit = f"hit{self.counter}"
-            out = [f"{p}Optional<{m.cls}> {hit} = {self.repo(s.table)}.findById({key});"]
+            hit = f"_hit{self.counter}"
+            out = [f"{p}Optional<{m.cls}> {hit} = {self.repo(s.table)}.findByIdForUpdate({key});"]
             if self.uses_found:
                 out.append(f"{p}found = {hit}.isPresent();")
             out.append(f"{p}if ({hit}.isPresent()) {{")
-            out.append(f"{p}    {m.cls} row = {hit}.get();")
+            out.append(f"{p}    {m.cls} _row = {hit}.get();")
             out += [f"{p}    {b}" for b in body]
             return out + [f"{p}}}"]
         f = Finder(tuple(m.col(c) for c, _ in s.where))
@@ -338,7 +356,7 @@ class ServiceGen:
         out = []
         if self.uses_found:
             out.append(f"{p}found = false;")
-        out.append(f"{p}for ({m.cls} row : {self.repo(s.table)}.findBy{f.suffix}({args})) {{")
+        out.append(f"{p}for ({m.cls} _row : {self.repo(s.table)}.findBy{f.suffix}({args})) {{")
         if self.uses_found:
             out.append(f"{p}    found = true;")
         out += [f"{p}    {b}" for b in body]

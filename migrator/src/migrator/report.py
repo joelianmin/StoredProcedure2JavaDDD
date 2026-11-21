@@ -101,6 +101,10 @@ def build_report(project: Path, manual_csv: Path | None, corpus_procs: Path | No
     out += ["## Ringkasan", "",
             "| Procedure | Putusan |", "|---|---|"]
     out += [f"| {n} | {v} |" for n, v in sorted(verdicts.items())]
+    orphan = sorted({r["scenario"] for r in results if r["procedure"] not in verdicts})
+    if orphan:
+        out += ["", "**Peringatan:** skenario gagal sebelum procedure diketahui (tidak masuk putusan mana pun):"]
+        out += [f"- {n}" for n in orphan]
     out.append("")
 
     # ---------------- metrik

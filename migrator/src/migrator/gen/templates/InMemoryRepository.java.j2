@@ -60,6 +60,11 @@ public class InMemory{{ t.cls }}Repository implements {{ t.cls }}Repository, Sna
     }
 
     @Override
+    public Optional<{{ t.cls }}> findByIdForUpdate({{ t.pk.jtype }} {{ t.pk.field }}) {
+        return findById({{ t.pk.field }});
+    }
+
+    @Override
     public List<{{ t.cls }}> findAll() {
         List<{{ t.cls }}> out = new ArrayList<>();
         data.values().forEach(e -> out.add(e.copy()));

@@ -124,7 +124,12 @@ class Env:
         for v in self.proc.vars:
             if v.default is not None:
                 defs[v.name].append(("expr", v.default))
-        order: list[tuple[str, str]] = []     # (jenis, nama): urutan baca/definisi
+        # Definite assignment terstruktur: sebuah variabel hanya dianggap "pasti terisi" di titik baca
+        # bila definisinya mendominasi titik itu. Definisi di dalam IF dihitung hanya bila SEMUA cabang
+        # (termasuk ELSE) mengisinya; definisi di dalam FOR tidak pernah dihitung setelah loop
+        # (loop bisa berjalan nol kali). Cabang yang berakhir RAISE/RETURN tidak ikut irisan.
+        unassigned_read: set[str] = set()
+        TOP = None                                # jalur tidak berlanjut (RAISE/RETURN)
 
         def reads(e: Expr, out: list):
             if isinstance(e, VarRef):
@@ -132,38 +137,44 @@ class Env:
             for child in _children(e):
                 reads(child, out)
 
-        def visit(stmts):
+        def meet(states):
+            live = [s for s in states if s is not TOP]
+            if not live:
+                return TOP
+            out = set(live[0])
+            for s in live[1:]:
+                out &= s
+            return out
+
+        def visit(stmts, assigned):
             for i, s in enumerate(stmts):
+                if assigned is TOP:
+                    return TOP
                 for e in _exprs_of(s):
                     names: list = []
                     reads(e, names)
-                    order.extend(("read", n) for n in names)
+                    unassigned_read.update(n for n in names if n in defs and n not in assigned)
                 if isinstance(s, Assign):
                     defs[s.target].append(("expr", s.value))
-                    order.append(("def", s.target))
+                    assigned = assigned | {s.target}
                 elif isinstance(s, SelectInto):
                     guarded = i + 1 < len(stmts) and _is_not_found_guard(stmts[i + 1])
                     for col, tgt in zip(s.columns, s.targets):
                         ok = guarded and self.column(s.table, col).not_null
                         defs[tgt].append(("const", not ok))
-                        order.append(("def", tgt))
-                if isinstance(s, If):
-                    for _, b in s.branches:
-                        visit(b)
-                    visit(s.else_body)
+                    assigned = assigned | set(s.targets)
+                elif isinstance(s, If):
+                    outs = [visit(b, assigned) for _, b in s.branches]
+                    outs.append(visit(s.else_body, assigned) if s.else_body else assigned)
+                    assigned = meet(outs)
                 elif isinstance(s, ForQuery):
-                    visit(s.body)
+                    visit(s.body, assigned)             # isi loop tidak mendominasi pernyataan sesudahnya
+                elif isinstance(s, (Raise, Return)):
+                    return TOP
+            return assigned
 
-        visit(self.proc.body)
-        read_before_def = set()
-        seen_def = {v.name for v in self.proc.vars if v.default is not None}
-        for kind, name in order:
-            if kind == "def":
-                seen_def.add(name)
-            elif name in defs and name not in seen_def:
-                read_before_def.add(name)
-
-        nn = {n for n, d in defs.items() if d and n not in read_before_def}
+        visit(self.proc.body, {v.name for v in self.proc.vars if v.default is not None})
+        nn = {n for n, d in defs.items() if d and n not in unassigned_read}
         changed = True
         while changed:                          # titik tetap terbesar
             changed = False

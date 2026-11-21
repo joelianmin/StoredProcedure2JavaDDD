@@ -14,6 +14,13 @@ def api_files(tables, procs, models, mapping_path: Path | None, env, analyses) -
     apis = []
     if mapping_path:
         mapping = load_mapping(mapping_path)
+        known = {a.procedure for a in analyses}
+        supported = {p.name for p in procs}
+        unknown = [n for n in mapping.procedures if n not in known]
+        if unknown:
+            raise MappingError("\n".join(f"  - {n}: procedure tidak ada di korpus" for n in unknown))
+        # procedure yang TIDAK LAYAK tidak diberi endpoint (tetap tercatat di laporan)
+        mapping = type(mapping)({n: m for n, m in mapping.procedures.items() if n in supported})
         errs = validate_mapping(mapping, procs)
         if errs:
             raise MappingError("\n".join(f"  - {e}" for e in errs))

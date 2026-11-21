@@ -1,6 +1,8 @@
 """Aturan penamaan SQL -> Java (deterministik)."""
 from __future__ import annotations
 
+import re
+
 from .ir import Procedure
 
 JAVA_KEYWORDS = {
@@ -65,10 +67,20 @@ def kebab(sql_name: str) -> str:
 
 
 def getter(col: str) -> str:
-    f = java_field(col).rstrip("_")
+    """class_ -> getClass_ (tidak bentrok dengan Object.getClass)."""
+    f = java_field(col)
     return "get" + f[:1].upper() + f[1:]
 
 
 def setter(col: str) -> str:
-    f = java_field(col).rstrip("_")
+    f = java_field(col)
     return "set" + f[:1].upper() + f[1:]
+
+
+def sql_ident(name: str) -> str:
+    """Identifier SQL: dikutip bila bukan huruf kecil polos atau merupakan keyword PostgreSQL."""
+    from pglast.keywords import COL_NAME_KEYWORDS, RESERVED_KEYWORDS, TYPE_FUNC_NAME_KEYWORDS
+    keywords = RESERVED_KEYWORDS | TYPE_FUNC_NAME_KEYWORDS | COL_NAME_KEYWORDS
+    if re.fullmatch(r"[a-z_][a-z0-9_]*", name) and name not in keywords:
+        return name
+    return '"' + name.replace('"', '""') + '"'
