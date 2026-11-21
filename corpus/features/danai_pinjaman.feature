@@ -43,7 +43,7 @@ Feature: Kesetaraan danai_pinjaman (meniru FundingService semester lalu)
     Then procedure lama gagal dengan "P0001" "Saldo lender tidak mencukupi"
     And hasil lama dan baru setara
 
-  Scenario: Loan tidak ditemukan (pesan dengan argumen, J10)
+  Scenario: Loan tidak ditemukan: SELECT INTO tanpa baris lalu RAISE dengan argumen (J3, J10)
     When procedure "danai_pinjaman" dipanggil dengan:
       | p_funding_id | p_loan_id | p_lender_id | p_jumlah |
       | F005         | L999      | LD001       | 1000000  |
